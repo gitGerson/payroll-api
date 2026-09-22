@@ -1,6 +1,9 @@
-require('dotenv').config();
 const express = require('express');
 const db = require('./db');
+
+// Basic Auth credentials (testing only)
+const API_USERNAME = 'admin';
+const API_PASSWORD = 'admin';
 
 const app = express();
 app.use(express.json());
@@ -20,7 +23,7 @@ function basicAuth(req, res, next) {
   const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
   const [username, password] = credentials.split(':');
 
-  if (username !== process.env.API_USERNAME || password !== process.env.API_PASSWORD) {
+  if (username !== API_USERNAME || password !== API_PASSWORD) {
     return res.status(401).json({
       status: 'error',
       message: 'Unauthorized: Invalid credentials'
@@ -52,16 +55,10 @@ app.get('/jpayroll/thirdparty/ext/API_View_Master_EmpInfo.php', basicAuth, (req,
     });
   }
 
-  if (!data) {
-    return res.status(404).json({
-      status: 'error',
-      message: `Employee with NIK '${NIK}' not found`
-    });
-  }
-
+  // Client expects a list of records; an unknown NIK is an empty list, not a 404
   return res.status(200).json({
     status: 'success',
-    data: data
+    data: data ? [data] : []
   });
 });
 
