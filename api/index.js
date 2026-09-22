@@ -1,15 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
+const db = require('./db');
 
 const app = express();
 app.use(express.json());
-
-// Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
 
 // Basic Auth middleware
 function basicAuth(req, res, next) {
@@ -37,7 +31,7 @@ function basicAuth(req, res, next) {
 }
 
 // GET /jpayroll/thirdparty/ext/API_View_Master_EmpInfo.php
-app.get('/jpayroll/thirdparty/ext/API_View_Master_EmpInfo.php', basicAuth, async (req, res) => {
+app.get('/jpayroll/thirdparty/ext/API_View_Master_EmpInfo.php', basicAuth, (req, res) => {
   const { NIK } = req.body;
 
   if (!NIK) {
@@ -47,23 +41,21 @@ app.get('/jpayroll/thirdparty/ext/API_View_Master_EmpInfo.php', basicAuth, async
     });
   }
 
-  const { data, error } = await supabase
-    .from('master_emp_info')
-    .select('*')
-    .eq('nik', NIK)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return res.status(404).json({
-        status: 'error',
-        message: `Employee with NIK '${NIK}' not found`
-      });
-    }
+  let data;
+  try {
+    data = db.prepare('SELECT * FROM master_emp_info WHERE nik = ?').get(NIK);
+  } catch (error) {
     return res.status(500).json({
       status: 'error',
       message: 'Internal server error',
       detail: error.message
+    });
+  }
+
+  if (!data) {
+    return res.status(404).json({
+      status: 'error',
+      message: `Employee with NIK '${NIK}' not found`
     });
   }
 
